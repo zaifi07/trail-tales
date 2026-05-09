@@ -22,7 +22,7 @@ const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5003;
 
 // ----- Security & basics -----
 app.use(helmet({ contentSecurityPolicy: false }));

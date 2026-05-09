@@ -44,7 +44,7 @@ pipeline {
                     sh """
                         docker run -d \
                         --name ${CONTAINER_NAME} \
-                        -p 5000:5000 \
+                        -p 5003:5003 \
                         ${IMAGE_NAME}
                     """
 
@@ -61,7 +61,7 @@ pipeline {
 
                     env.APP_STATUS = sh(
                         script: """
-                            if curl -I http://15.207.26.84:5000; then
+                            if curl -I http://15.207.26.84:5003; then
                                 echo "Website is RUNNING"
                             else
                                 echo "Website is DOWN"

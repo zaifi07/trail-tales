@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // In production the React app is served from the SAME origin as the API,
 // so a relative baseURL is correct and survives every EC2 IP change with
-// no code changes. In dev, Vite proxies /api -> http://localhost:5000.
+// no code changes. In dev, Vite proxies /api -> http://localhost:5003.
 const api = axios.create({
   baseURL: '/api',
   timeout: 15000,

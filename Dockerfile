@@ -11,8 +11,8 @@ RUN cd server && npm install --omit=dev
 
 # Set production environment
 ENV NODE_ENV=production
-ENV PORT=5000
-EXPOSE 5000
+ENV PORT=5003
+EXPOSE 5003
 
 # Start the server
 CMD ["node", "server/server.js"]
