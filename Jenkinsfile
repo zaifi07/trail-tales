@@ -92,11 +92,12 @@ pipeline {
             steps {
 
                 sh """
-                    docker run -d \
-                    --name ${CONTAINER_NAME} \
-                    -p ${HOST_PORT}:${CONTAINER_PORT} \
-                    --restart unless-stopped \
-                    ${IMAGE_NAME}:latest
+                docker run -d \
+              --name trailtales-second-container \
+              --env-file /home/ubuntu/trailtales.env \
+              -p 5003:5003 \
+              --restart unless-stopped \
+              trailtales-second-app:latest
                 """
             }
         }
