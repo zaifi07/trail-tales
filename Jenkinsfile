@@ -94,7 +94,7 @@ pipeline {
                 sh """
                 docker run -d \
               --name trailtales-second-container \
-              --env-file /home/ubuntu/trailtales.env \
+              --env-file /opt/trailtales/.env \
               -p 5003:5003 \
               --restart unless-stopped \
               trailtales-second-app:latest
