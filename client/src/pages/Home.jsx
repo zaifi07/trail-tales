@@ -44,7 +44,7 @@ export default function Home() {
       <section className="hero">
         <div className="hero-inner">
           <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.8)' }}>Where to go</div>
-          <h1>Explore the world<br />with exciting people</h1>
+          <h1>Let's Explore the world<br />with exciting people</h1>
           <p>
             TrailTales is a journal for the curious. Share where you've been, what
             moved you, and the strangers who turned into stories along the way.
