@@ -3,200 +3,184 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "zaifi07/trailtales"
-        CONTAINER_NAME = "trail-tales"
-        TEST_REPO = "https://github.com/zaifi07/selenium-testing.git"
+
+        // Docker image + container
+        IMAGE_NAME = "trailtales-second-app"
+        CONTAINER_NAME = "trailtales-second-container"
+
+        // App Port Mapping
+        HOST_PORT = "5003"
+        CONTAINER_PORT = "5003"
+
+        // GitHub Repo
+        GIT_REPO = "https://github.com/zaifi07/trail-tales.git"
+
+    }
+
+    triggers {
+        githubPush()
     }
 
     stages {
 
-        stage('Get Committer Email') {
+        // ---------------------------------------------------
+        // Checkout Source Code
+        // ---------------------------------------------------
+        stage('Checkout Code') {
             steps {
+
+                git branch: 'master',
+                    url: "${GIT_REPO}"
 
                 script {
 
-                    env.AUTHOR_EMAIL = sh(
+                    // Get latest committer email
+                    env.COMMITTER_EMAIL = sh(
                         script: "git log -1 --pretty=format:'%ae'",
                         returnStdout: true
                     ).trim()
 
-                    echo "Committer Email: ${env.AUTHOR_EMAIL}"
-                }
-            }
-        }
-
-        stage('Pull Docker Image') {
-            steps {
-
-                sh "docker pull ${IMAGE_NAME}"
-            }
-        }
-
-        stage('Run Website Container') {
-            steps {
-
-                script {
-
-                    // Remove old container if exists
-                    sh "docker rm -f ${CONTAINER_NAME} || true"
-
-                    // Run website container
-                    sh """
-                        docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        -p 5003:5003 \
-                        ${IMAGE_NAME}
-                    """
-
-                    // Wait for website startup
-                    sleep 15
-                }
-            }
-        }
-
-        stage('Check Website') {
-            steps {
-
-                script {
-
-                    env.APP_STATUS = sh(
-                        script: """
-                            if curl -I http://15.207.26.84:5003; then
-                                echo "Website is RUNNING"
-                            else
-                                echo "Website is DOWN"
-                            fi
-                        """,
+                    // Get commit author name
+                    env.COMMITTER_NAME = sh(
+                        script: "git log -1 --pretty=format:'%an'",
                         returnStdout: true
                     ).trim()
 
-                    echo env.APP_STATUS
+                    // Get commit message
+                    env.COMMIT_MESSAGE = sh(
+                        script: "git log -1 --pretty=format:'%s'",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Committer Email: ${env.COMMITTER_EMAIL}"
                 }
             }
         }
 
-        stage('Clone Selenium Repo') {
+        // ---------------------------------------------------
+        // Build Docker Image
+        // ---------------------------------------------------
+        stage('Build Docker Image') {
+
             steps {
 
                 sh """
-                    rm -rf selenium-testing
-
-                    git clone ${TEST_REPO}
+                    docker build -t ${IMAGE_NAME}:latest .
                 """
             }
         }
 
-        stage('Setup Python Environment') {
+        // ---------------------------------------------------
+        // Stop Existing Container
+        // ---------------------------------------------------
+        stage('Remove Old Container') {
+
             steps {
 
-                dir('selenium-testing') {
-
-                    sh """
-                        python3 -m venv venv
-
-                        . venv/bin/activate
-
-                        pip install -r requirements.txt
-
-                        cp .env.example .env
-                    """
-                }
+                sh """
+                    docker stop ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} || true
+                """
             }
         }
 
-        stage('Run Selenium Tests') {
+        // ---------------------------------------------------
+        // Run New Container
+        // ---------------------------------------------------
+        stage('Run Container') {
+
             steps {
 
-                dir('selenium-testing') {
+                sh """
+                docker run -d \
+              --name trailtales-second-container \
+              --env-file /opt/trailtales/.env \
+              -p 5003:5003 \
+              --restart unless-stopped \
+              trailtales-second-app:latest
+                """
+            }
+        }
 
-                    script {
+        // ---------------------------------------------------
+        // Health Check
+        // ---------------------------------------------------
+        stage('Application Health Check') {
 
-                        env.TEST_RESULTS = sh(
-                            script: """
-                                . venv/bin/activate
+            steps {
 
-                                pytest || true
-                            """,
-                            returnStdout: true
-                        ).trim()
+                script {
 
-                        echo env.TEST_RESULTS
-                    }
+                    sleep 20
+
+                    sh """
+                        curl --fail http://15.207.26.84:${HOST_PORT}/api/health
+                    """
                 }
             }
         }
     }
 
+    // -------------------------------------------------------
+    // Notifications
+    // -------------------------------------------------------
     post {
 
         success {
 
-            mail(
-                to: "${env.AUTHOR_EMAIL}",
-                subject: "Jenkins Pipeline SUCCESS - ${env.JOB_NAME}",
+            emailext(
+                subject: "✅ Deployment Successful - TrailTales",
                 body: """
-Hello,
+Hello ${env.COMMITTER_NAME},
 
-Your deployment and Selenium tests completed successfully.
+Your latest commit has been successfully deployed.
 
+--------------------------------------------------
 
-====================================
-SELENIUM TEST RESULTS
-====================================
+Commit Message:
+${env.COMMIT_MESSAGE}
 
-${env.TEST_RESULTS}
+Application Status:
+LIVE ✅
 
+Server:
+http://YOUR_EC2_PUBLIC_IP:${HOST_PORT}
 
+--------------------------------------------------
 
 Regards,
-Jenkins
-"""
+Jenkins CI/CD Pipeline
+""",
+                to: "${env.COMMITTER_EMAIL}"
             )
         }
 
         failure {
 
-            mail(
-                to: "${env.AUTHOR_EMAIL}",
-                subject: "Jenkins Pipeline FAILED - ${env.JOB_NAME}",
+            emailext(
+                subject: "❌ Deployment Failed - TrailTales",
                 body: """
-Hello,
+Hello ${env.COMMITTER_NAME},
 
-Your Jenkins pipeline FAILED.
+Your latest commit failed during build/deployment.
 
-====================================
-JOB NAME
-====================================
+--------------------------------------------------
 
-${env.JOB_NAME}
+Commit Message:
+${env.COMMIT_MESSAGE}
 
-====================================
-BUILD NUMBER
-====================================
-
-${env.BUILD_NUMBER}
-
-====================================
-BUILD URL
-====================================
-
-${env.BUILD_URL}
+Application Status:
+FAILED ❌
 
 Please check Jenkins console logs.
 
+--------------------------------------------------
+
 Regards,
-Jenkins
-"""
+Jenkins CI/CD Pipeline
+""",
+                to: "${env.COMMITTER_EMAIL}"
             )
-        }
-
-        always {
-
-            script {
-
-                // Cleanup selenium repo
-                sh "rm -rf selenium-testing || true"
-            }
         }
     }
 }
